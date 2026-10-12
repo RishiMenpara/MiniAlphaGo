@@ -28,6 +28,12 @@ class GameSession:
 
 
 def available_checkpoints():
+    best_pt = Path("checkpoints/best_model.pt")
+    zip_path = Path("checkpoints/minialphago-trained.zip")
+    if not best_pt.exists() and zip_path.exists():
+        import zipfile
+        with zipfile.ZipFile(zip_path, "r") as z:
+            z.extractall(".")
     paths = sorted(Path("checkpoints").glob("*.pt"))
     return [str(p) for p in paths] or ["checkpoints/best_model.pt"]
 
@@ -817,4 +823,7 @@ def build_app():
 
 
 if __name__ == "__main__":
-    build_app().launch()
+    import os
+    port = int(os.environ.get("PORT", 7860))
+    share = os.environ.get("SHARE", "false").lower() in ("true", "1")
+    build_app().launch(server_name="0.0.0.0", server_port=port, share=share)
