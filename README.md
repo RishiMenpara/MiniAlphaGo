@@ -91,7 +91,7 @@ outputs/metrics.json
 outputs/training_metrics.png
 ```
 
-Checkpoint loading uses `map_location` and reads the saved channel/block configuration, so CPU, CUDA, and smoke-sized checkpoints are portable. Resume restores model progress and replay data. A newly created trainer initializes a fresh AdamW optimizer for the next candidate; candidate checkpoints themselves also contain optimizer state.
+Checkpoint loading uses `map_location` and reads the saved channel/block configuration, so CPU, CUDA, and smoke-sized checkpoints are portable. `best_model.pt` and each `iteration_NNN.pt` contain the accepted incumbent and are safe resume points; `candidate_model.pt` is the most recently trained candidate and may have been rejected. Resume restores model progress and replay data. A newly created trainer initializes a fresh AdamW optimizer for the next candidate; candidate checkpoints themselves also contain optimizer state.
 
 ## Evaluation and play
 

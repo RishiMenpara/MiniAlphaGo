@@ -83,9 +83,13 @@ def run_training(cfg: Config, resume: str | None = None) -> None:
         promoted = evaluation.win_rate >= cfg.promotion_threshold
         if promoted:
             best.load_state_dict(candidate.state_dict())
-            save_checkpoint(best_path, best, cfg, iteration=iteration, metrics=evaluation.to_dict())
+        checkpoint_metrics = {**evaluation.to_dict(), "promoted": promoted}
+        # Persist the accepted incumbent every iteration. This makes both
+        # best_model.pt and iteration_NNN.pt safe resume points even when the
+        # newly trained candidate was rejected.
+        save_checkpoint(best_path, best, cfg, iteration=iteration, metrics=checkpoint_metrics)
         snapshot = Path(cfg.checkpoint_dir) / f"iteration_{iteration:03d}.pt"
-        save_checkpoint(snapshot, candidate, cfg, optimizer=trainer.optimizer, iteration=iteration, metrics=evaluation.to_dict())
+        save_checkpoint(snapshot, best, cfg, iteration=iteration, metrics=checkpoint_metrics)
 
         random_result = evaluate_agents(MCTSAgent(best, cfg), RandomAgent(), cfg, max(2, cfg.evaluation_games // 2))
         row = {"iteration": iteration, "candidate_win_rate": evaluation.win_rate,
