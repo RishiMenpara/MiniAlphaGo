@@ -1,156 +1,170 @@
-# MiniAlphaGo — AlphaZero-Inspired 5×5 Go AI
+# MiniAlphaGo
 
-MiniAlphaGo is a complete educational self-play reinforcement-learning system. It learns a policy and value function from its own games and improves move selection with PUCT Monte Carlo Tree Search (MCTS). It is **AlphaZero-inspired**; it is not a reproduction of DeepMind's full AlphaGo/AlphaZero training infrastructure and it does not use a pretrained Go engine.
+An **AlphaZero-inspired 5×5 Go AI** built with Python, PyTorch, Monte Carlo Tree Search (MCTS), and a residual policy-value neural network.
 
-## What is included
+MiniAlphaGo plays real 5×5 Go using the trained model included with this project. It supports Human vs AI and AI vs AI games through an interactive Gradio interface.
 
-- Correct 5×5 Go: captures, connected groups/liberties, suicide prevention, positional superko, pass, two-pass termination, Chinese area scoring, and configurable komi.
-- Four-plane, current-player-relative encoding with shape `[4, 5, 5]`.
-- Configurable residual PyTorch policy-value CNN. The policy head emits 26 logits and the value head emits one `tanh` value.
-- PUCT MCTS with illegal-action masking, pass support, root Dirichlet noise, temperature control, terminal backup, and alternating value perspectives.
-- Self-play examples `(s, π, z)`, bounded serializable replay, and batched AdamW policy/value training.
-- Candidate-vs-best evaluation with alternating colors, deterministic search, and threshold-based promotion.
-- Random baseline, resumable device-safe checkpoints, JSON metrics, and training plots.
-- Terminal play and a Gradio UI for Human-vs-AI or stepwise AI-vs-AI visualization.
+## 🎮 Live Demo
 
-## Learning pipeline
+**[Play MiniAlphaGo on Hugging Face](https://rishimenpara-minialphago.hf.space)**
 
-```text
-Go State
-   ↓
-State Encoder [4, 5, 5]
-   ↓
-Residual Policy-Value CNN
-   ↓
-Policy P + Value V
-   ↓
-MCTS / PUCT
-   ↓
-Improved Policy π → Action → Go Environment
-   ↓
-Self-Play → (s, π, z) → Replay Buffer
-   ↓
-Policy loss + Value loss → Candidate Network
-   ↓
-Candidate vs Best → Promote or retain Best Model
-```
+> The free hosted demo may take a moment to start. Select 5–25 MCTS simulations for faster moves.
 
-The policy target `π` is the normalized root visit distribution, not the raw network policy. After a game, `z` is `+1`, `0`, or `-1` from the current player's perspective at each stored state. Training minimizes:
+## ✨ Features
+
+- Human vs AI gameplay
+- AI vs AI visualization
+- Play as Black or White
+- Policy-value residual CNN implemented in PyTorch
+- Neural-network-guided MCTS with PUCT
+- Complete 5×5 Go rules
+- Captures and multi-stone captures
+- Liberty detection and suicide prevention
+- Positional superko
+- Pass moves and two-pass game termination
+- Chinese-style area scoring with configurable komi
+- Legal-move validation and clear error messages
+- Checkpoint loading on CPU or CUDA
+- Interactive Gradio web interface
+
+## 📊 Model Performance
+
+The trained checkpoint achieved **95 wins in 100 games against the included RandomAgent baseline**.
+
+This result measures performance against a random opponent and does not represent professional Go strength.
+
+## 🧠 Architecture
 
 ```text
-Lpolicy = -Σa π(a) log softmax(logits)(a)
-Lvalue  = MSE(v, z)
-Ltotal  = Lpolicy + Lvalue
+5×5 Go position
+      ↓
+State encoder [4, 5, 5]
+      ↓
+Residual policy-value network
+      ↓
+Policy logits + position value
+      ↓
+MCTS with PUCT
+      ↓
+Selected legal move
 ```
 
-PUCT selects an edge using approximately `Q + c_puct × P × sqrt(Nparent) / (1 + Nedge)`. A child's stored value is from the child-to-play perspective, so it is negated when its parent compares actions and is sign-corrected during backup.
+The action space contains **26 actions**: 25 board intersections and one PASS action. The four input planes represent the current player's stones, the opponent's stones, legal placements, and the current-player indicator.
 
-## Rules and representation
+## 🚀 Run Locally
 
-Black (`1`) moves first; White is `-1`; empty is `0`. Actions `0..24` are row-major board intersections and action `25` is pass. Two consecutive passes finish the game. Chinese area score is stones plus surrounded empty area; komi is added to White. Positional superko rejects a placement if its resulting board position has occurred earlier. Passing is always legal before game end.
+### Requirements
 
-The input planes are current-player stones, opponent stones, legal placement mask, and a plane filled with `1` when Black is to move (otherwise `0`). Batches have shape `[B, 4, 5, 5]`; outputs are policy logits `[B, 26]` and values `[B, 1]`.
+- Python 3.10 or 3.11
+- Windows, Linux, or macOS
+- GPU optional
 
-## Install and verify
-
-Python 3.10+ is recommended.
+### Installation
 
 ```bash
-pip install -r requirements.txt
-pytest
-python train.py --smoke-test
+git clone https://github.com/RishiMenpara/MiniAlphaGo.git
+cd MiniAlphaGo
+python -m venv .venv
 ```
 
-`requirements.txt` contains the core training/test dependencies and is the correct file for Kaggle. The optional local web interface has its own dependency file so it does not disturb Kaggle's preinstalled UI packages:
+Activate the environment.
+
+**Windows PowerShell:**
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+**Linux or macOS:**
 
 ```bash
-pip install -r requirements-ui.txt
-python app.py
+source .venv/bin/activate
 ```
 
-The smoke run uses a small network, two MCTS simulations per move, one self-play game, two optimizer steps, and two evaluation games. It verifies the pipeline; it does not produce a strong player.
-
-## Training
-
-Default hyperparameters live in `config.py` and can be edited centrally. Common command-line overrides are available:
+Install dependencies:
 
 ```bash
-python train.py
-python train.py --iterations 20 --self-play-games 50 --mcts-simulations 100 --training-steps 400 --evaluation-games 40
-python train.py --resume checkpoints/iteration_005.pt
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt -r requirements-ui.txt
 ```
 
-Each iteration performs self-play with the current best model, trains a copied candidate, evaluates candidate vs best without root noise and at zero temperature, promotes it when its decisive win rate reaches the threshold, and evaluates the resulting best model against RandomAgent. Files are written to:
+Place the trained checkpoint at:
 
 ```text
 checkpoints/best_model.pt
-checkpoints/candidate_model.pt
-checkpoints/iteration_001.pt
-checkpoints/replay_buffer.pkl
-outputs/metrics.json
-outputs/training_metrics.png
 ```
 
-Checkpoint loading uses `map_location` and reads the saved channel/block configuration, so CPU, CUDA, and smoke-sized checkpoints are portable. `best_model.pt` and each `iteration_NNN.pt` contain the accepted incumbent and are safe resume points; `candidate_model.pt` is the most recently trained candidate and may have been rejected. Resume restores model progress and replay data. A newly created trainer initializes a fresh AdamW optimizer for the next candidate; candidate checkpoints themselves also contain optimizer state.
-
-## Evaluation and play
+Launch the interface:
 
 ```bash
-python evaluate.py --checkpoint checkpoints/best_model.pt --games 20 --simulations 100
-python evaluate.py --checkpoint checkpoints/candidate_model.pt --opponent-checkpoint checkpoints/best_model.pt
-python play.py --checkpoint checkpoints/best_model.pt --color white --simulations 100
-pip install -r requirements-ui.txt
 python app.py
 ```
 
-Open the local URL printed by Gradio. Select a checkpoint, human color, mode, and search budget, then press **New Game**. If the human is White, the AI automatically makes Black's opening move. Board intersections and PASS use the same `GoEnv`, trained `PolicyValueNet`, and `MCTS` implementation used during training. In AI-vs-AI mode, **AI Step** advances one move so the search can be observed without blocking the UI for a full game. The last move is shown in brackets.
+Open the address printed in the terminal, normally `http://127.0.0.1:7860`.
 
-## Kaggle Tesla T4 quick start
+## 🕹️ How to Play
 
-Upload this directory as a Kaggle dataset or clone/copy it under `/kaggle/working/mini-alphago`, enable a GPU accelerator, and run:
+1. Select Human vs AI or AI vs AI.
+2. Choose whether the human plays Black or White.
+3. Select the trained checkpoint.
+4. Choose the number of MCTS simulations.
+5. Start a new game.
+6. Click a legal board intersection to place a stone.
+7. Use PASS when you do not want to place a stone.
 
-```python
-import os, torch
-print(torch.cuda.is_available(), torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU")
-os.chdir("/kaggle/working/mini-alphago")
-!pip install -q -r requirements.txt
-!pytest -q
-!python train.py --smoke-test
-```
+Black moves first. If the human selects White, the AI automatically makes the opening Black move.
 
-For a larger run:
-
-```python
-!python train.py --iterations 20 --self-play-games 50 --mcts-simulations 100 --training-steps 400
-!python train.py --resume /kaggle/working/mini-alphago/checkpoints/iteration_005.pt
-```
-
-Everything under `/kaggle/working/mini-alphago/checkpoints` is downloadable from notebook outputs. Gradio may launch with `python app.py`, but inbound interactive access depends on Kaggle's current networking policy. See `notebooks/kaggle_quickstart.ipynb` for executable cells.
-
-CUDA is detected automatically. GPU acceleration is strongest for batched training. This implementation performs sequential Python tree search and single-state inference, so it does **not** fully utilize a T4 during MCTS; batching or parallel actors would be needed for that.
-
-## Project layout
+## 📁 Project Structure
 
 ```text
-config.py                 central validated configuration
-game/                     Go rules and encoding
-model/                    residual policy-value network
-mcts/                     node statistics and PUCT search
-rl/                       self-play, replay, training, evaluation
-agents/                   MCTS and random agents
-train.py                  iterative training/promotion loop
-evaluate.py               checkpoint evaluation
-play.py                   terminal Human-vs-AI
-app.py                    Gradio Human-vs-AI / AI-vs-AI UI
-tests/                    rule, shape, search, RL, and loading tests
-notebooks/                Kaggle quick-start notebook
+MiniAlphaGo/
+├── app.py                 # Gradio web interface
+├── play.py                # Local gameplay entry point
+├── evaluate.py            # Model evaluation utility
+├── config.py              # Central configuration
+├── game/                  # Go rules and state encoding
+├── model/                 # Residual policy-value network
+├── mcts/                  # MCTS and PUCT search
+├── rl/                    # Reinforcement-learning components
+├── agents/                # Baseline agents
+├── tests/                 # Automated tests
+├── checkpoints/           # Trained model checkpoints
+└── outputs/               # Evaluation results and plots
 ```
 
-## Important limitations
+## ✅ Tests
 
-- 5×5 only. The compact environment intentionally does not implement handicap stones, Japanese scoring, dead-stone adjudication, or Go protocol support.
-- Scoring treats surrounded empty regions by border color. As with most compact Go environments, players should capture dead groups before passing; there is no post-game dead-stone agreement phase.
-- Python MCTS is correct and readable rather than distributed or highly optimized. There is no inference batching, transposition table, symmetry augmentation, or parallel self-play worker pool.
-- Strength depends on compute. The default settings are a practical starting point, not a promise of expert play; the smoke checkpoint is only a functionality check.
-- Replay serialization uses Python pickle and should only load files you trust.
+```bash
+pytest
+```
 
+The tests cover Go rules, state encoding, model shapes, MCTS behavior, and integration between the main components.
+
+## 🛠️ Technology
+
+- Python
+- PyTorch
+- NumPy
+- Gradio
+- Matplotlib
+- Hugging Face Spaces
+
+## ⚠️ Limitations
+
+- The project uses a 5×5 board and is not intended for full-size 19×19 Go.
+- MCTS is sequential Python code, so higher simulation counts increase response time.
+- The free hosted demo has limited compute resources.
+- Results against RandomAgent do not establish strength against experienced players or established Go engines.
+
+## Disclaimer
+
+This is an educational **AlphaZero-inspired MiniAlphaGo project**. It is not a reproduction of DeepMind's complete AlphaGo or AlphaZero systems and does not use a pretrained external Go engine.
+
+## 👨‍💻 Author
+
+Developed by **Rishi Menpara**.
+
+- [GitHub Repository](https://github.com/RishiMenpara/MiniAlphaGo)
+- [Live Demo](https://rishimenpara-minialphago.hf.space)
+
+If you find the project useful, please consider giving the repository a ⭐.
