@@ -21,7 +21,10 @@ def test_tiny_self_play_integrates_all_components():
     cfg = Config(num_channels=8, num_res_blocks=1, mcts_simulations=1, max_game_length=4, device="cpu")
     model = PolicyValueNet(channels=8, residual_blocks=1)
     examples, winner, env = play_self_game(model, cfg, add_noise=False)
-    assert len(examples) == 4
+    # Two passes may correctly finish an untrained model's game before the
+    # four-move safety cap, so assert the invariant rather than an exact length.
+    assert 1 <= len(examples) <= cfg.max_game_length
+    assert len(examples) == env.move_count
     assert examples[0][0].shape == (4, 5, 5)
     assert examples[0][1].shape == (26,) and np.isclose(examples[0][1].sum(), 1)
     assert winner in (-1, 0, 1)
