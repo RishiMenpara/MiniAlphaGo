@@ -61,6 +61,13 @@ pytest
 python train.py --smoke-test
 ```
 
+`requirements.txt` contains the core training/test dependencies and is the correct file for Kaggle. The optional local web interface has its own dependency file so it does not disturb Kaggle's preinstalled UI packages:
+
+```bash
+pip install -r requirements-ui.txt
+python app.py
+```
+
 The smoke run uses a small network, two MCTS simulations per move, one self-play game, two optimizer steps, and two evaluation games. It verifies the pipeline; it does not produce a strong player.
 
 ## Training
@@ -92,6 +99,7 @@ Checkpoint loading uses `map_location` and reads the saved channel/block configu
 python evaluate.py --checkpoint checkpoints/best_model.pt --games 20 --simulations 100
 python evaluate.py --checkpoint checkpoints/candidate_model.pt --opponent-checkpoint checkpoints/best_model.pt
 python play.py --checkpoint checkpoints/best_model.pt --color white --simulations 100
+pip install -r requirements-ui.txt
 python app.py
 ```
 

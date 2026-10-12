@@ -30,7 +30,7 @@ def available_checkpoints():
 
 def _require_gradio():
     if gr is None:
-        raise RuntimeError("Gradio is not installed. Run: pip install -r requirements.txt")
+        raise RuntimeError("Gradio is not installed. Run: pip install -r requirements-ui.txt")
 
 
 def create_session(checkpoint, human_color, mode, simulations):
