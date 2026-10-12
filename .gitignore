@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Generated training artifacts
+checkpoints/*.pt
+checkpoints/*.pkl
+outputs/*.json
+outputs/*.png
+
+# Keep output directories in fresh clones
+!checkpoints/.gitkeep
+!outputs/.gitkeep
+
+# Kaggle / notebooks
+.ipynb_checkpoints/
+
